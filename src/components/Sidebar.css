@@ -1,6 +1,7 @@
-/* Styling for the left sidebar that lists every Part 164 section. */
+/* Styling for the left sidebar: a "Sections" / "Terms" tab switcher at the
+   top, and a scrollable list of whichever one is active below it. */
 
-.section-sidebar {
+.sidebar {
   /* A fixed width so it doesn't grow/shrink as the list's text changes —
      this is also what makes the ellipsis truncation below actually kick
      in, since the browser needs a definite width to know when text no
@@ -11,34 +12,53 @@
   /* Let this panel scroll on its own if the list is taller than the
      screen, instead of scrolling the whole page. */
   overflow-y: auto;
-  padding: 20px 0;
   box-sizing: border-box;
 }
 
-.section-sidebar-title {
-  margin: 0 0 12px;
-  padding: 0 20px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-muted);
+/* The row of "Sections" / "Terms" buttons at the top of the sidebar. */
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.section-sidebar-status {
+.sidebar-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  /* Leaves room for the active tab's underline (below) without the text
+     jumping up/down when it appears. */
+  border-bottom: 2px solid transparent;
+  padding: 14px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.sidebar-tab:hover {
+  color: var(--color-accent);
+}
+
+/* Whichever tab ("Sections" or "Terms") is currently showing. */
+.sidebar-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.sidebar-status {
   margin: 0;
-  padding: 0 20px;
+  padding: 16px 20px 0;
   font-size: 13px;
   color: var(--color-muted);
 }
 
-.section-sidebar-list {
+.sidebar-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 12px 0;
 }
 
-.section-sidebar-item {
+.sidebar-item {
   /* Make the button fill the row and look like plain text until hovered,
      rather than looking like a typical browser button. */
   display: block;
@@ -57,14 +77,14 @@
   text-overflow: ellipsis;
 }
 
-.section-sidebar-item:hover {
+.sidebar-item:hover {
   background: rgba(37, 99, 235, 0.08);
   color: var(--color-accent);
 }
 
-/* The currently-open section, so it's obvious which one the main area is
-   showing. */
-.section-sidebar-item--active {
+/* The currently-open section or term, so it's obvious which one the main
+   area is showing. */
+.sidebar-item--active {
   background: rgba(37, 99, 235, 0.12);
   color: var(--color-accent);
   font-weight: 600;

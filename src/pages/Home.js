@@ -1,14 +1,15 @@
 // This is the main page, shown once someone is signed in. It has two ways
 // to find regulation text:
 // 1. Type in the Google-style search box for ranked results as you type.
-// 2. Browse the left sidebar, which lists every Part 164 section, and
-//    click one to read its full text.
-// Clicking a section, whether from the sidebar or from a search result,
-// opens its full text in place of whatever was showing, without touching
-// the search box — so closing that full-text view returns to exactly
-// where the visitor was (the search results, or the empty homepage).
-// Typing in the search box is the only thing that closes a full-text view
-// automatically, since a fresh search should always take over.
+// 2. Browse the left sidebar, which has two tabs: "Sections" (every Part
+//    164 section, the default view) and "Terms" (every defined term,
+//    alphabetical). Clicking either opens it.
+// Only one thing shows in the main area at a time: search results, an open
+// section's full text, or an open term's definition. Opening a section or
+// term from the sidebar/results leaves the search box exactly as it was,
+// so closing it returns to wherever the visitor was. Typing in the search
+// box is the only thing that closes an open section/term automatically,
+// since a fresh search should always take over.
 
 // useState: remember a value and re-draw when it changes.
 import { useState } from 'react';
@@ -19,10 +20,11 @@ import { useHipaaSearch } from '../hooks/useHipaaSearch';
 // Our custom hook that finds out when the regulation data was last
 // refreshed (see useDataFreshness.js).
 import { useDataFreshness } from '../hooks/useDataFreshness';
-// The sidebar listing every section, and the full-text detail view shown
-// when one is clicked.
-import { SectionSidebar } from '../components/SectionSidebar';
+// The sidebar (Sections/Terms tabs), the full-text detail view shown when
+// a section is opened, and the card shown when a term is opened.
+import { Sidebar } from '../components/Sidebar';
 import { SectionDetail } from '../components/SectionDetail';
+import { DefinitionCard } from '../components/DefinitionCard';
 // Turns [[H]]...[[/H]] markers from the database into real highlighted
 // <mark> elements — shared with SectionDetail so the same search terms
 // stay highlighted whether you're looking at a snippet or the full text.
@@ -37,6 +39,10 @@ export default function Home() {
   const [query, setQuery] = useState('');
   // Which sidebar section (if any) is currently open for reading, by id.
   const [selectedSectionId, setSelectedSectionId] = useState(null);
+  // Which term (if any) is currently open, as the whole
+  // { id, term, definition, citation, source_url } object — the sidebar
+  // already has this in memory, so there's no need to fetch it again.
+  const [selectedTerm, setSelectedTerm] = useState(null);
   // Ask our search hook for whatever matches the current query.
   const { definition, sections, loading } = useHipaaSearch(query);
   // The date/time the regulation data was last refreshed, or null until
@@ -45,15 +51,17 @@ export default function Home() {
 
   // Whether the visitor has typed anything at all.
   const hasQuery = query.trim().length > 0;
-  // Whether we should be showing search results or a section's full text
-  // in the main area at all, instead of the big empty "home" state.
-  const showContent = hasQuery || Boolean(selectedSectionId);
+  // Whether we should be showing search results, a section's full text, or
+  // a term's definition in the main area at all, instead of the big empty
+  // "home" state.
+  const showContent = hasQuery || Boolean(selectedSectionId) || Boolean(selectedTerm);
 
   // Runs when the visitor types in the search box. Typing should always
-  // win over a section that was being read, so clear that selection out.
+  // win over a section/term that was being read, so clear those out.
   const handleQueryChange = (event) => {
     setQuery(event.target.value);
     setSelectedSectionId(null);
+    setSelectedTerm(null);
   };
 
   // Runs when the visitor clicks a section — whether that's in the
@@ -61,9 +69,19 @@ export default function Home() {
   // section's full text and leave the search box exactly as it was, so
   // closing the detail view (see SectionDetail's onClose below) returns to
   // wherever the visitor was before, instead of losing whatever they'd
-  // typed.
+  // typed. Opening a section also closes any term that was open, since
+  // only one of the two can be shown at once.
   const handleSelectSectionId = (id) => {
     setSelectedSectionId(id);
+    setSelectedTerm(null);
+  };
+
+  // Runs when the visitor clicks a term in the sidebar's "Terms" tab.
+  // Mirrors handleSelectSectionId above, just for terms instead of
+  // sections.
+  const handleSelectTerm = (term) => {
+    setSelectedTerm(term);
+    setSelectedSectionId(null);
   };
 
   // Runs when the visitor clicks the "Clear" text inside the search box.
@@ -71,6 +89,7 @@ export default function Home() {
   const handleClear = () => {
     setQuery('');
     setSelectedSectionId(null);
+    setSelectedTerm(null);
   };
 
   return (
@@ -90,7 +109,12 @@ export default function Home() {
       {/* Everything below the top bar is a sidebar on the left and the
           main content on the right, side by side. */}
       <div className="search-body">
-        <SectionSidebar selectedId={selectedSectionId} onSelect={handleSelectSectionId} />
+        <Sidebar
+          selectedSectionId={selectedSectionId}
+          onSelectSection={handleSelectSectionId}
+          selectedTermId={selectedTerm?.id}
+          onSelectTerm={handleSelectTerm}
+        />
 
         <div className="search-main">
           {/* The big heading and search box. It gets a "compact" class
@@ -138,22 +162,28 @@ export default function Home() {
                   query={query}
                   onClose={() => setSelectedSectionId(null)}
                 />
+              ) : selectedTerm ? (
+                // A term from the sidebar's "Terms" tab is open — show its
+                // definition the same way an exact search match would.
+                <div>
+                  <button
+                    type="button"
+                    className="section-detail-back"
+                    onClick={() => setSelectedTerm(null)}
+                  >
+                    ← Back to search
+                  </button>
+                  <DefinitionCard definition={selectedTerm} />
+                </div>
               ) : (
-                // No section open — a search is active, so show search
+                // Nothing open — a search is active, so show search
                 // results.
                 <>
                   {loading && <p className="search-status">Searching…</p>}
 
                   {/* If the typed text exactly matches a defined term, show
                       its definition first, above the regulation results. */}
-                  {definition && (
-                    <div className="search-definition">
-                      <p className="search-definition-label">Definition:</p>
-                      <p className="search-definition-term">{definition.term}</p>
-                      <p className="search-definition-body">{definition.definition}</p>
-                      <p className="search-citation">{definition.citation}</p>
-                    </div>
-                  )}
+                  {definition && <DefinitionCard definition={definition} />}
 
                   {/* If we're done searching and found neither a
                       definition nor any sections, let the visitor know
