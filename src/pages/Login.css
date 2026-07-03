@@ -1,0 +1,133 @@
+/* These are the visual styles (the "look") for the Login page: a black
+   background with a white card floating in the middle, and blue for the
+   button and highlights. The color names like var(--color-black) come from
+   the shared list of colors defined in src/index.css, so all pages stay
+   consistent. */
+
+/* The full-page black background behind the white card. */
+.login-page {
+  /* Make it at least as tall as the visible browser window. */
+  min-height: 100vh;
+  /* "flex" lets us easily center things inside this box. */
+  display: flex;
+  /* Center the card up-and-down (vertically). */
+  align-items: center;
+  /* Center the card left-and-right (horizontally). */
+  justify-content: center;
+  background: var(--color-black);
+}
+
+/* The white box that holds the sign-in form. */
+.login-card {
+  /* Take up the full width available, but never grow past 360 pixels. */
+  width: 100%;
+  max-width: 360px;
+  background: var(--color-white);
+  /* Slightly rounded corners instead of sharp ones. */
+  border-radius: 8px;
+  /* Space inside the card, above/below then left/right. */
+  padding: 40px 32px;
+  /* Makes sure the padding is counted inside the width, not added on top. */
+  box-sizing: border-box;
+}
+
+/* The "HIPAA Search" heading at the top of the card. */
+.login-title {
+  margin: 0;
+  font-size: 22px;
+  /* 700 = bold. */
+  font-weight: 700;
+  color: var(--color-black);
+  text-align: center;
+}
+
+/* The small "Sign in to continue" line under the heading. */
+.login-subtitle {
+  /* Space above, then below, the text. */
+  margin: 8px 0 28px;
+  font-size: 14px;
+  /* A soft gray instead of pure black, so it looks less important than the
+     heading. */
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/* The form itself: stack its contents (label, box, label, box, button) in a
+   single column, top to bottom. */
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The small text labels above each input box, like "Email" and
+   "Password". */
+.login-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-black);
+  /* A little breathing room before the input box underneath it. */
+  margin-bottom: 6px;
+}
+
+/* The email and password typing boxes. */
+.login-input {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  /* Space below each box before the next label starts. */
+  margin-bottom: 18px;
+  color: var(--color-black);
+  background: var(--color-white);
+}
+
+/* What an input box looks like while the visitor is actively typing in it
+   (this is called "focus"). */
+.login-input:focus {
+  /* Remove the browser's default blue focus ring... */
+  outline: none;
+  /* ...and replace it with our own blue border... */
+  border-color: var(--color-accent);
+  /* ...plus a soft blue glow around the box. */
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* The error message text (like "invalid password"), shown in red-ish
+   "danger" color so it stands out as a problem. */
+.login-error {
+  color: var(--color-danger);
+  font-size: 13px;
+  /* A negative top margin pulls it up snug under the password box above
+     it. */
+  margin: -8px 0 16px;
+}
+
+/* The blue "Sign in" button. */
+.login-button {
+  background: var(--color-accent);
+  color: var(--color-white);
+  border: none;
+  border-radius: 6px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  /* Shows a hand/pointer cursor to make it obviously clickable. */
+  cursor: pointer;
+}
+
+/* Slightly darker blue when the visitor hovers their mouse over the button
+   — but only if the button isn't disabled (that's what ":not(:disabled)"
+   means). */
+.login-button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+/* What the button looks like while it's disabled (while we're waiting to
+   hear back from Supabase after clicking Sign in). */
+.login-button:disabled {
+  /* Fade it out a bit... */
+  opacity: 0.6;
+  /* ...and show a "not-allowed" cursor so it's clear clicking won't do
+     anything right now. */
+  cursor: not-allowed;
+}

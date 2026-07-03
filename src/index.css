@@ -1,12 +1,71 @@
+/* This file holds the colors and base look shared by the whole app. Think
+   of :root as "the whole page" — anything defined here with two dashes in
+   front (like --color-black) is a reusable color name we can plug into any
+   other stylesheet with var(--color-black), instead of retyping the same
+   color code everywhere. */
+:root {
+  /* Our two main colors: near-black and pure white. */
+  --color-black: #0a0a0a;
+  --color-white: #ffffff;
+  /* The default page background is white... */
+  --color-bg: var(--color-white);
+  /* ...and the default text color is black. */
+  --color-text: var(--color-black);
+  /* A light gray for thin lines around boxes, like input fields. */
+  --color-border: #e2e2e2;
+  /* A medium gray for text that should look less important, like
+     subtitles. */
+  --color-muted: #6b6b6b;
+  /* Our blue "accent" color, used for buttons, highlights, and links the
+     visitor hasn't clicked yet. */
+  --color-accent: #2563eb;
+  /* A slightly darker blue, used when hovering over accent-colored
+     buttons. */
+  --color-accent-hover: #1d4ed8;
+  /* Regular (not-yet-clicked) links use the same blue as the accent
+     color. */
+  --color-link: var(--color-accent);
+  /* Links the visitor HAS already clicked turn purple instead, so it's
+     easy to tell "seen" links apart from "unseen" ones. */
+  --color-link-visited: #7c3aed;
+  /* Red, reserved for error messages / warnings. */
+  --color-danger: #dc2626;
+}
+
+/* "body" is the entire visible page. These are its default settings. */
 body {
+  /* Remove the small gap browsers add around the edge of the page by
+     default. */
   margin: 0;
+  /* The list of fonts to try, in order, depending on what's installed on
+     the visitor's device. */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
+  /* These two lines make text edges look smoother on Mac/Windows
+     screens. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Use our shared background and text colors defined above. */
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
+/* Regular links (the visitor hasn't clicked them yet) show in our blue
+   accent color. */
+a {
+  color: var(--color-link);
+}
+
+/* Links the visitor has already clicked before show in purple instead, as
+   the user asked for a distinct "clicked" color. */
+a:visited {
+  color: var(--color-link-visited);
+}
+
+/* Any text wrapped in a <code> tag (used for showing code snippets) uses a
+   monospace font, where every letter takes up the same width — easier to
+   read code in. */
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
