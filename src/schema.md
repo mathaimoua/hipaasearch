@@ -27,3 +27,33 @@ create policy "Public read access"
 
 -- No public insert/update/delete policies — only the service_role key (used by
 -- your Python ingestion script) can write, since it bypasses RLS entirely.
+
+alter table hipaa_sections
+  add constraint hipaa_sections_section_number_key unique (section_number);
+
+-- HIPAA definitions table — individual defined terms from 45 CFR 160.103
+-- Separate from hipaa_sections because this is term -> definition lookups,
+-- not full regulatory section text.
+create table hipaa_definitions (
+  id uuid primary key default gen_random_uuid(),
+  term text not null,
+  definition text not null,
+  citation text not null,          -- "45 CFR 160.103"
+  source_url text,
+  search_vector tsvector generated always as (
+    to_tsvector('english', coalesce(term, '') || ' ' || coalesce(definition, ''))
+  ) stored,
+  created_at timestamptz default now()
+);
+
+create index hipaa_definitions_search_idx on hipaa_definitions using gin(search_vector);
+alter table hipaa_definitions add constraint hipaa_definitions_term_key unique (term);
+
+alter table hipaa_definitions enable row level security;
+
+create policy "Public read access"
+  on hipaa_definitions for select
+  using (true);
+
+-- No insert/update/delete policy for the public — only the service_role key
+-- (used by the ingestion script) can write.
