@@ -20,6 +20,11 @@ import { useHipaaSearch } from '../hooks/useHipaaSearch';
 // Our custom hook that finds out when the regulation data was last
 // refreshed (see useDataFreshness.js).
 import { useDataFreshness } from '../hooks/useDataFreshness';
+// Our custom hook that fetches every defined term. Fetched once up here
+// (rather than inside Sidebar) since SectionDetail needs the same list too,
+// to turn defined terms found inside a section's body into clickable
+// links — fetching it in one shared place avoids downloading it twice.
+import { useDefinitionList } from '../hooks/useDefinitionList';
 // The sidebar (Sections/Terms tabs), the full-text detail view shown when
 // a section is opened, and the card shown when a term is opened.
 import { Sidebar } from '../components/Sidebar';
@@ -48,6 +53,9 @@ export default function Home() {
   // The date/time the regulation data was last refreshed, or null until
   // we've looked it up.
   const dataUpdatedAt = useDataFreshness();
+  // Every defined term, for the sidebar's "Terms" tab and for turning
+  // terms found inside a section's body into clickable links.
+  const { definitions, loading: definitionsLoading } = useDefinitionList();
 
   // Whether the visitor has typed anything at all.
   const hasQuery = query.trim().length > 0;
@@ -78,10 +86,22 @@ export default function Home() {
 
   // Runs when the visitor clicks a term in the sidebar's "Terms" tab.
   // Mirrors handleSelectSectionId above, just for terms instead of
-  // sections.
+  // sections: browsing a term standalone from the sidebar should replace
+  // whatever section was open, so closing it goes back to search
+  // results/homepage rather than some unrelated section.
   const handleSelectTerm = (term) => {
     setSelectedTerm(term);
     setSelectedSectionId(null);
+  };
+
+  // Runs when the visitor clicks a defined term found inside a section's
+  // body text (see SectionDetail's onTermClick below). Unlike
+  // handleSelectTerm above, this deliberately leaves selectedSectionId
+  // alone — the term view is shown on top of it (see the render priority
+  // below), so closing the term goes back to that same section instead of
+  // to search results.
+  const handleSelectTermFromBody = (term) => {
+    setSelectedTerm(term);
   };
 
   // Runs when the visitor clicks the "Clear" text inside the search box.
@@ -114,6 +134,8 @@ export default function Home() {
           onSelectSection={handleSelectSectionId}
           selectedTermId={selectedTerm?.id}
           onSelectTerm={handleSelectTerm}
+          definitions={definitions}
+          definitionsLoading={definitionsLoading}
         />
 
         <div className="search-main">
@@ -149,32 +171,42 @@ export default function Home() {
 
           {showContent && (
             <div className="search-results">
-              {selectedSectionId ? (
-                // A section is open for reading — whether that's because
-                // the visitor clicked it in the sidebar or clicked a
-                // search result, show its full text here instead of the
-                // results list. Closing it goes back to whatever was in
-                // the search box: the results list if there's still a
-                // query typed, or the empty homepage if not (that's why
-                // this one "onClose" works for both cases).
-                <SectionDetail
-                  sectionId={selectedSectionId}
-                  query={query}
-                  onClose={() => setSelectedSectionId(null)}
-                />
-              ) : selectedTerm ? (
-                // A term from the sidebar's "Terms" tab is open — show its
-                // definition the same way an exact search match would.
+              {selectedTerm ? (
+                // A term is open — either browsed standalone from the
+                // sidebar's "Terms" tab, or clicked from inside a
+                // section's body text (see SectionDetail's onTermClick).
+                // This is checked before selectedSectionId below on
+                // purpose: if a term was opened from within a section, the
+                // section is still remembered underneath so "Back" can
+                // return to it, but the term should display on top of it
+                // while it's open.
                 <div>
                   <button
                     type="button"
                     className="section-detail-back"
                     onClick={() => setSelectedTerm(null)}
                   >
-                    ← Back to search
+                    ← Back
                   </button>
                   <DefinitionCard definition={selectedTerm} />
                 </div>
+              ) : selectedSectionId ? (
+                // A section is open for reading — whether that's because
+                // the visitor clicked it in the sidebar or clicked a
+                // search result, show its full text here instead of the
+                // results list. Closing it goes back to whatever was in
+                // the search box: the results list if there's still a
+                // query typed, or the empty homepage if not (that's why
+                // this one "onClose" works for both cases). Any defined
+                // term found in the text becomes a clickable link, via
+                // handleSelectTermFromBody.
+                <SectionDetail
+                  sectionId={selectedSectionId}
+                  query={query}
+                  terms={definitions}
+                  onTermClick={handleSelectTermFromBody}
+                  onClose={() => setSelectedSectionId(null)}
+                />
               ) : (
                 // Nothing open — a search is active, so show search
                 // results.

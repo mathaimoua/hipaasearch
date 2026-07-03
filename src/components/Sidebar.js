@@ -5,21 +5,32 @@
 
 // useState: remember which tab is active, and re-draw when it changes.
 import { useState } from 'react';
-// Our hooks that fetch the two lists shown here.
+// Our hook that fetches the section list shown in the "Sections" tab. The
+// term list for the "Terms" tab is fetched once up in Home.js instead (see
+// definitions/definitionsLoading below) and passed down here, since
+// SectionDetail also needs that same list for linking terms found inside a
+// section's body — fetching it in one shared place avoids downloading it
+// twice.
 import { useSectionList } from '../hooks/useSectionList';
-import { useDefinitionList } from '../hooks/useDefinitionList';
 import './Sidebar.css';
 
 // selectedSectionId / onSelectSection: which section (if any) is open, and
 // what to call when one is clicked.
 // selectedTermId / onSelectTerm: same idea, for terms.
-export function Sidebar({ selectedSectionId, onSelectSection, selectedTermId, onSelectTerm }) {
+// definitions / definitionsLoading: the term list for the "Terms" tab.
+export function Sidebar({
+  selectedSectionId,
+  onSelectSection,
+  selectedTermId,
+  onSelectTerm,
+  definitions,
+  definitionsLoading,
+}) {
   // Which tab is showing right now — "sections" is the default per the
   // requirements.
   const [activeTab, setActiveTab] = useState('sections');
 
   const { sections, loading: sectionsLoading } = useSectionList();
-  const { definitions, loading: definitionsLoading } = useDefinitionList();
 
   return (
     <nav className="sidebar">

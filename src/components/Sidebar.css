@@ -13,6 +13,7 @@
      screen, instead of scrolling the whole page. */
   overflow-y: auto;
   box-sizing: border-box;
+  background: var(--color-sidebar-tint);
 }
 
 /* The row of "Sections" / "Terms" buttons at the top of the sidebar. */

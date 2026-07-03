@@ -25,6 +25,14 @@
   /* Regular (not-yet-clicked) links use the same blue as the accent
      color. */
   --color-link: var(--color-accent);
+  /* A softer periwinkle blue, used only for the sidebar's background (see
+     Sidebar.css) — distinct from --color-accent, which is reserved for
+     clickable things like buttons and links. */
+  --color-sidebar-tint: #9ba8f0;
+  /* A deep navy, used for the top bar and footer (see Home.css) — dark
+     enough that text on top of it needs to switch to white/light colors
+     instead of the usual black. */
+  --color-navy: #06005c;
   /* Links the visitor HAS already clicked turn purple instead, so it's
      easy to tell "seen" links apart from "unseen" ones. */
   --color-link-visited: #7c3aed;

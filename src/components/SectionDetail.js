@@ -4,17 +4,21 @@
 
 // Our hook that fetches the selected section's full text.
 import { useSectionDetail } from '../hooks/useSectionDetail';
-// Turns [[H]]...[[/H]] markers into highlighted <mark> elements, so
-// whatever's in the search box stays highlighted in the full text too.
-import { Highlighted } from './Highlighted';
+// Renders the body text with both the search-highlight markers turned into
+// <mark> elements, and any defined term turned into a clickable link.
+import { TermLinkedText } from './TermLinkedText';
 
 // sectionId: which section to load and show.
 // query: whatever's currently typed in the search box, if anything — used
 // to keep the same words highlighted here that were highlighted in the
 // results list.
+// terms: every defined term, so any of them found in the body text can
+// become a clickable link.
+// onTermClick: called with a term's full definition when one of those
+// links is clicked.
 // onClose: a function to call to leave the detail view (e.g. clicking
 // "Back to search").
-export function SectionDetail({ sectionId, query, onClose }) {
+export function SectionDetail({ sectionId, query, terms, onTermClick, onClose }) {
   const { section, loading } = useSectionDetail(sectionId, query);
 
   if (loading) {
@@ -43,11 +47,11 @@ export function SectionDetail({ sectionId, query, onClose }) {
         </a>
       )}
       {/* white-space: pre-line (see Home.css) keeps the paragraph breaks
-          already present in the stored text, and Highlighted wraps any
-          matching search words in <mark> the same way the results list
-          does. */}
+          already present in the stored text. TermLinkedText handles both
+          the search-match highlighting and the clickable defined-term
+          links within the same pass over the text. */}
       <p className="section-detail-body">
-        <Highlighted text={section.body} />
+        <TermLinkedText text={section.body} terms={terms} onTermClick={onTermClick} />
       </p>
     </div>
   );
