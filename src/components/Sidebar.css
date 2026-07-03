@@ -14,6 +14,15 @@
   overflow-y: auto;
   box-sizing: border-box;
   background: var(--color-sidebar-tint);
+  /* A soft shadow cast onto the main content to its right, so the sidebar
+     reads as sitting above the page instead of just being a flat colored
+     panel. Only offset horizontally (the "4px" below is x-offset, "0" is
+     y-offset), so it doesn't add any shadow above/below the sidebar. */
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+  /* Without this, the shadow would be drawn underneath the main content
+     next to it instead of on top of it. */
+  position: relative;
+  z-index: 1;
 }
 
 /* The row of "Sections" / "Terms" buttons at the top of the sidebar. */

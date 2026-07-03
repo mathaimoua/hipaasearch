@@ -144,7 +144,7 @@ export default function Home() {
               to shrink the spacing so content below has room. */}
           <div className={`search-hero ${showContent ? 'search-hero--compact' : ''}`}>
             <h1 className="search-title">HIPAA Search</h1>
-            <h4 className="subheader">Powered by ecfr.gov</h4>
+            <h4 className="subheader">Powered by Abbott & ecfr.gov</h4>
             {/* A positioning wrapper so the "Clear" text can sit inside
                 the right edge of the input, on top of it, instead of next
                 to it. */}
