@@ -31,10 +31,8 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 
 TITLE = 45
 PART = 164
-TODAY = date.today().isoformat()  # eCFR wants a point-in-time date, e.g. "2026-07-03"
 
-ECFR_URL = f"https://www.ecfr.gov/api/versioner/v1/full/{TODAY}/title-{TITLE}.xml"
-ECFR_PARAMS = {"part": PART}
+TITLES_ENDPOINT = "https://www.ecfr.gov/api/versioner/v1/titles.json"
 
 SOURCE_URL_TEMPLATE = (
     "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/section-{section}"
@@ -47,9 +45,26 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 # Fetch
 # ---------------------------------------------------------------------------
 
-def fetch_ecfr_xml() -> str:
-    print(f"Fetching {ECFR_URL} with params {ECFR_PARAMS} ...")
-    resp = requests.get(ECFR_URL, params=ECFR_PARAMS, timeout=60)
+def get_latest_date_for_title(title: int) -> str:
+    """eCFR's 'full' endpoint requires a real snapshot date, not an arbitrary
+    calendar date. Look up the title's up_to_date_as_of date first."""
+    print(f"Looking up latest available date for Title {title} ...")
+    resp = requests.get(TITLES_ENDPOINT, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    for t in data.get("titles", []):
+        if t.get("number") == title:
+            latest = t.get("up_to_date_as_of") or t.get("latest_issue_date")
+            print(f"  using date: {latest}")
+            return latest
+    sys.exit(f"Could not find Title {title} in eCFR titles list.")
+
+
+def fetch_ecfr_xml(snapshot_date: str) -> str:
+    url = f"https://www.ecfr.gov/api/versioner/v1/full/{snapshot_date}/title-{TITLE}.xml"
+    params = {"part": PART}
+    print(f"Fetching {url} with params {params} ...")
+    resp = requests.get(url, params=params, timeout=60)
     resp.raise_for_status()
     return resp.text
 
@@ -142,7 +157,8 @@ def upsert_rows(rows):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    xml_text = fetch_ecfr_xml()
+    snapshot_date = get_latest_date_for_title(TITLE)
+    xml_text = fetch_ecfr_xml(snapshot_date)
     rows = parse_sections(xml_text)
     print(f"Parsed {len(rows)} sections from Part {PART}.")
     if rows:
