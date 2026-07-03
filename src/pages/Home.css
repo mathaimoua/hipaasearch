@@ -3,18 +3,61 @@
    starts typing, making room for results below. Colors reuse the shared
    variables from src/index.css so this page matches the rest of the app. */
 
-/* The whole page: white background, full height, sign-out bar at the top,
-   everything else stacked below it. */
+/* The whole page: locked to exactly the screen's height (rather than
+   "at least" the screen's height, like before) so the sidebar and the
+   main area can each scroll on their own, independent of one another,
+   instead of one long page scroll. Top bar, then the sidebar+main row,
+   then the footer, stacked top to bottom. */
 .search-page {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--color-white);
+  overflow: hidden;
+}
+
+/* The row holding the sidebar and the main content side by side, filling
+   whatever vertical space is left between the top bar and the footer.
+   "min-height: 0" is a quirk of CSS flexbox — without it, this row would
+   refuse to shrink and would push the footer off-screen instead of
+   letting its contents scroll internally. */
+.search-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* The right-hand column next to the sidebar: the search box, and whatever
+   results/section text is currently showing below it. Scrolls on its own
+   if the content is taller than the screen. */
+.search-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* The "Data last updated" note at the very bottom of the page. Because
+   .search-body above already takes up all the leftover space (flex: 1),
+   this naturally ends up pinned to the bottom of the screen without
+   needing any extra positioning tricks. */
+.search-footer {
+  flex-shrink: 0;
+  padding: 16px 24px;
+  text-align: center;
+}
+
+.search-footer-text {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
 }
 
 /* The small bar in the top-right with the signed-in username and a
    sign-out button. */
 .search-topbar {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -63,7 +106,15 @@
   font-size: 48px;
   font-weight: 700;
   color: var(--color-black);
-  margin: 0 0 24px;
+  margin: 0 0 0px;
+  letter-spacing: -0.5px;
+}
+
+.subheader {
+  font-size: 16px;
+  font-weight: 300;
+  color: gray;
+  margin: 0 0 20px;
   letter-spacing: -0.5px;
 }
 
@@ -150,6 +201,23 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* The clickable area covering the heading/snippet/citation of a result
+   (everything except the separate "View source" link below it). Reset to
+   look like plain text rather than a typical browser button. */
+.search-result-button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.search-result-button:hover .search-result-heading {
+  color: var(--color-accent);
+}
+
 .search-result-heading {
   margin: 0 0 6px;
   font-size: 16px;
@@ -179,4 +247,48 @@
   margin: 0;
   font-size: 12px;
   color: var(--color-muted);
+}
+
+/* The full-text view shown when a sidebar section is clicked, in place of
+   search results. */
+.section-detail-back {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.section-detail-back:hover {
+  text-decoration: underline;
+}
+
+.section-detail-heading {
+  margin: 4px 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-black);
+}
+
+/* The "View source" link, now sitting just under the title instead of
+   after the full body text — this margin gives it some breathing room
+   before the body starts. */
+.section-detail-source {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.section-detail-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-black);
+  /* The stored section text already has paragraph breaks baked in as
+     actual line breaks (see ingest_hipaa.py) — "pre-line" tells the
+     browser to honor those instead of collapsing them into one long line,
+     without us having to split the text apart in JavaScript. */
+  white-space: pre-line;
+  margin-bottom: 16px;
 }

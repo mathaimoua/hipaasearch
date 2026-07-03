@@ -1,0 +1,71 @@
+/* Styling for the left sidebar that lists every Part 164 section. */
+
+.section-sidebar {
+  /* A fixed width so it doesn't grow/shrink as the list's text changes —
+     this is also what makes the ellipsis truncation below actually kick
+     in, since the browser needs a definite width to know when text no
+     longer fits. */
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+  /* Let this panel scroll on its own if the list is taller than the
+     screen, instead of scrolling the whole page. */
+  overflow-y: auto;
+  padding: 20px 0;
+  box-sizing: border-box;
+}
+
+.section-sidebar-title {
+  margin: 0 0 12px;
+  padding: 0 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+}
+
+.section-sidebar-status {
+  margin: 0;
+  padding: 0 20px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.section-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.section-sidebar-item {
+  /* Make the button fill the row and look like plain text until hovered,
+     rather than looking like a typical browser button. */
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 20px;
+  font-size: 13px;
+  color: var(--color-black);
+  cursor: pointer;
+  /* These three together are what cut a too-long line off with "…"
+     instead of wrapping to a second line or overflowing the sidebar. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.section-sidebar-item:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-accent);
+}
+
+/* The currently-open section, so it's obvious which one the main area is
+   showing. */
+.section-sidebar-item--active {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--color-accent);
+  font-weight: 600;
+}

@@ -126,6 +126,45 @@ $$ language plpgsql security definer set search_path = public, extensions;
 
 grant execute on function public.verify_login(text, text) to anon, authenticated;
 
+-- Shared by both search_sections and get_section below: turns whatever was
+-- typed into a Postgres full-text search query, so this "how do we turn
+-- typed words into a database search" logic only has to live in one
+-- place instead of being copy-pasted into every function that needs it.
+create or replace function public.build_prefix_tsquery(p_query text)
+returns text as $$
+declare
+  words text[];
+  cleaned text[];
+  w text;
+begin
+  -- Break what was typed into separate words, throwing out anything that
+  -- isn't a letter, number, or apostrophe so it can't be used to break out
+  -- of the search syntax below.
+  words := regexp_split_to_array(trim(coalesce(p_query, '')), '\s+');
+  cleaned := '{}';
+  foreach w in array words loop
+    w := regexp_replace(w, '[^a-zA-Z0-9'']', '', 'g');
+    if length(w) > 0 then
+      cleaned := array_append(cleaned, w);
+    end if;
+  end loop;
+
+  -- Nothing usable was typed (blank, or only symbols) — nothing to search
+  -- for.
+  if array_length(cleaned, 1) is null then
+    return null;
+  end if;
+
+  -- Turn ['privacy', 'ru'] into 'privacy:* & ru:*' — the ":*" means "starts
+  -- with", so results start appearing before the visitor finishes typing
+  -- the last word, and "&" means every word has to appear somewhere in the
+  -- text for it to count as a match.
+  return (select string_agg(word || ':*', ' & ') from unnest(cleaned) as word);
+end;
+$$ language plpgsql immutable set search_path = public;
+
+grant execute on function public.build_prefix_tsquery(text) to anon, authenticated;
+
 -- Live "search as you type" over hipaa_sections, ranked by best match.
 -- The exact-term definition lookup doesn't need a function — the app just
 -- does a plain case-insensitive select against hipaa_definitions, since
@@ -147,35 +186,15 @@ returns table (
   rank real
 ) as $$
 declare
-  words text[];
-  cleaned text[];
-  w text;
   tsquery_text text;
 begin
-  -- Break what was typed into separate words, throwing out anything that
-  -- isn't a letter, number, or apostrophe so it can't be used to break out
-  -- of the search syntax below.
-  words := regexp_split_to_array(trim(coalesce(p_query, '')), '\s+');
-  cleaned := '{}';
-  foreach w in array words loop
-    w := regexp_replace(w, '[^a-zA-Z0-9'']', '', 'g');
-    if length(w) > 0 then
-      cleaned := array_append(cleaned, w);
-    end if;
-  end loop;
+  tsquery_text := public.build_prefix_tsquery(p_query);
 
-  -- Nothing usable was typed (blank, or only symbols) — no results, and no
-  -- point running a search query.
-  if array_length(cleaned, 1) is null then
+  -- Nothing usable was typed — no results, and no point running a search
+  -- query.
+  if tsquery_text is null then
     return;
   end if;
-
-  -- Turn ['privacy', 'ru'] into 'privacy:* & ru:*' — the ":*" means "starts
-  -- with", so results start appearing before the visitor finishes typing
-  -- the last word, and "&" means every word has to appear somewhere in the
-  -- section for it to count as a match.
-  select string_agg(word || ':*', ' & ') into tsquery_text
-  from unnest(cleaned) as word;
 
   return query
     select
@@ -203,3 +222,73 @@ end;
 $$ language plpgsql stable set search_path = public;
 
 grant execute on function public.search_sections(text, int) to anon, authenticated;
+
+-- Fetches one section's full text for the detail view (opened by clicking
+-- a search result or a sidebar entry). If a search query is passed in,
+-- every matching word throughout the *entire* body gets wrapped in
+-- [[H]]...[[/H]] markers too — not just a short excerpt like
+-- search_sections above — via ts_headline's HighlightAll=true option,
+-- which tells it to return the whole document instead of trimming it down
+-- to a fragment. That's what keeps the search terms highlighted after
+-- opening the full text. If p_query is left blank (e.g. opened straight
+-- from the sidebar with nothing searched), the body comes back untouched.
+create or replace function public.get_section(p_id uuid, p_query text default null)
+returns table (
+  id uuid,
+  citation text,
+  heading text,
+  body text,
+  source_url text
+) as $$
+declare
+  tsquery_text text;
+begin
+  tsquery_text := public.build_prefix_tsquery(p_query);
+
+  if tsquery_text is null then
+    return query
+      select s.id, s.citation, s.heading, s.body, s.source_url
+      from public.hipaa_sections s
+      where s.id = p_id;
+  else
+    return query
+      select
+        s.id,
+        s.citation,
+        s.heading,
+        ts_headline(
+          'english', s.body, to_tsquery('english', tsquery_text),
+          'StartSel=[[H]], StopSel=[[/H]], HighlightAll=true'
+        ) as body,
+        s.source_url
+      from public.hipaa_sections s
+      where s.id = p_id;
+  end if;
+end;
+$$ language plpgsql stable set search_path = public;
+
+grant execute on function public.get_section(uuid, text) to anon, authenticated;
+
+-- Lets the homepage show visitors "Data last updated <date>", so they can
+-- tell the regulation text isn't stale. updated_at gets stamped with the
+-- current time automatically, by the database itself, whenever a row in
+-- either table is inserted or updated — so it always reflects the last
+-- time the ingestion scripts (ingest_hipaa.py / ingest_definitions.py)
+-- actually ran, with no changes needed to those scripts.
+create or replace function public.set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+alter table hipaa_sections add column updated_at timestamptz not null default now();
+create trigger set_hipaa_sections_updated_at
+  before insert or update on hipaa_sections
+  for each row execute procedure public.set_updated_at();
+
+alter table hipaa_definitions add column updated_at timestamptz not null default now();
+create trigger set_hipaa_definitions_updated_at
+  before insert or update on hipaa_definitions
+  for each row execute procedure public.set_updated_at();
