@@ -125,3 +125,81 @@ end;
 $$ language plpgsql security definer set search_path = public, extensions;
 
 grant execute on function public.verify_login(text, text) to anon, authenticated;
+
+-- Live "search as you type" over hipaa_sections, ranked by best match.
+-- The exact-term definition lookup doesn't need a function — the app just
+-- does a plain case-insensitive select against hipaa_definitions, since
+-- that's a simple exact match with no ranking involved. Regulation section
+-- search is different: it needs relevance ranking (which section mentions
+-- the term the most/most closely), which the Supabase client library can't
+-- express on its own, so it lives here as a database function instead.
+--
+-- No SECURITY DEFINER here (unlike verify_login/create_user above) — this
+-- only reads from hipaa_sections, which already has a public-read RLS
+-- policy, so it runs fine with the caller's own normal privileges.
+create or replace function public.search_sections(p_query text, p_limit int default 20)
+returns table (
+  id uuid,
+  citation text,
+  heading text,
+  snippet text,
+  source_url text,
+  rank real
+) as $$
+declare
+  words text[];
+  cleaned text[];
+  w text;
+  tsquery_text text;
+begin
+  -- Break what was typed into separate words, throwing out anything that
+  -- isn't a letter, number, or apostrophe so it can't be used to break out
+  -- of the search syntax below.
+  words := regexp_split_to_array(trim(coalesce(p_query, '')), '\s+');
+  cleaned := '{}';
+  foreach w in array words loop
+    w := regexp_replace(w, '[^a-zA-Z0-9'']', '', 'g');
+    if length(w) > 0 then
+      cleaned := array_append(cleaned, w);
+    end if;
+  end loop;
+
+  -- Nothing usable was typed (blank, or only symbols) — no results, and no
+  -- point running a search query.
+  if array_length(cleaned, 1) is null then
+    return;
+  end if;
+
+  -- Turn ['privacy', 'ru'] into 'privacy:* & ru:*' — the ":*" means "starts
+  -- with", so results start appearing before the visitor finishes typing
+  -- the last word, and "&" means every word has to appear somewhere in the
+  -- section for it to count as a match.
+  select string_agg(word || ':*', ' & ') into tsquery_text
+  from unnest(cleaned) as word;
+
+  return query
+    select
+      s.id,
+      s.citation,
+      s.heading,
+      -- A short excerpt from the section text with matching words wrapped
+      -- in [[H]]...[[/H]] markers, so the app can highlight them without
+      -- having to trust/render raw HTML. MaxFragments=1 keeps it to one
+      -- excerpt; MinWords/MaxWords control roughly how long it is.
+      ts_headline(
+        'english', s.body, to_tsquery('english', tsquery_text),
+        'StartSel=[[H]], StopSel=[[/H]], MaxFragments=1, MaxWords=40, MinWords=15'
+      ) as snippet,
+      s.source_url,
+      -- ts_rank_cd ("cover density" ranking) scores a section higher the
+      -- more often, and the more closely together, the searched words
+      -- appear in it — which is what "best match" means here.
+      ts_rank_cd(s.search_vector, to_tsquery('english', tsquery_text)) as rank
+    from public.hipaa_sections s
+    where s.search_vector @@ to_tsquery('english', tsquery_text)
+    order by rank desc
+    limit p_limit;
+end;
+$$ language plpgsql stable set search_path = public;
+
+grant execute on function public.search_sections(text, int) to anon, authenticated;
