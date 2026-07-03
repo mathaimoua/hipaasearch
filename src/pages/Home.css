@@ -118,10 +118,20 @@
   letter-spacing: -0.5px;
 }
 
-.search-input {
+/* Holds the input and the "Clear" text together, so "Clear" can be
+   positioned inside the input's right edge instead of floating outside
+   it. The width/max-width that used to live on .search-input directly now
+   live here instead, so both the input and the wrapper stay the same
+   size. */
+.search-input-wrapper {
+  position: relative;
   width: 100%;
   max-width: 560px;
-  padding: 14px 20px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 60px 14px 20px;
   font-size: 16px;
   border: 1px solid var(--color-border);
   /* A large radius makes the corners fully round, giving the classic
@@ -135,6 +145,26 @@
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 1px 6px rgba(37, 99, 235, 0.2);
+}
+
+/* The "Clear" text sitting inside the right edge of the search box.
+   Positioned on top of the input (not next to it) via the wrapper above,
+   and vertically centered regardless of the input's height. */
+.search-clear {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.search-clear:hover {
+  color: var(--color-accent);
 }
 
 /* The area below the search box holding the definition (if any) and the

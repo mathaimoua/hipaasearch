@@ -66,6 +66,13 @@ export default function Home() {
     setSelectedSectionId(id);
   };
 
+  // Runs when the visitor clicks the "Clear" text inside the search box.
+  // Empties the box, same as if they'd deleted everything themselves.
+  const handleClear = () => {
+    setQuery('');
+    setSelectedSectionId(null);
+  };
+
   return (
     <div className="search-page">
       {/* A small bar in the top-right corner showing who's signed in, with
@@ -92,16 +99,28 @@ export default function Home() {
           <div className={`search-hero ${showContent ? 'search-hero--compact' : ''}`}>
             <h1 className="search-title">HIPAA Search</h1>
             <h4 className="subheader">Powered by ecfr.gov</h4>
-            <input
-              className="search-input"
-              type="text"
-              placeholder="Search HIPAA regulations and definitions…"
-              // The box always shows whatever is currently stored in
-              // "query".
-              value={query}
-              onChange={handleQueryChange}
-              autoFocus
-            />
+            {/* A positioning wrapper so the "Clear" text can sit inside
+                the right edge of the input, on top of it, instead of next
+                to it. */}
+            <div className="search-input-wrapper">
+              <input
+                className="search-input"
+                type="text"
+                placeholder="Search HIPAA regulations and definitions…"
+                // The box always shows whatever is currently stored in
+                // "query".
+                value={query}
+                onChange={handleQueryChange}
+                autoFocus
+              />
+              {/* Only show "Clear" once there's actually something typed
+                  to clear. */}
+              {hasQuery && (
+                <button type="button" className="search-clear" onClick={handleClear}>
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {showContent && (
