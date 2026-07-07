@@ -1,14 +1,15 @@
 // stress_test.js
 //
-// Fires bursts of concurrent search requests at the live Supabase project
-// to generate the kind of load the System Health page is meant to show —
-// a spike in active connections, plus entries in the "slowest queries"
-// table (see get_system_health()/get_slow_queries() in schema.md).
+// Fires bursts of concurrent requests at the live Supabase project to
+// exercise the System Health page. Mixes in some deliberately heavier
+// requests (see WHY HEAVIER below) and randomizes how much load each run
+// generates, so running this more than once doesn't just produce the same
+// numbers over and over.
 //
-// Read-only: it only calls the same public search_sections function the
-// app itself already uses, through the same public/publishable key — it
-// can't modify or delete any data, and doesn't need the service-role key
-// the ingestion scripts use.
+// Read-only: everything here calls the same public search_sections /
+// get_section functions the app itself already uses, through the same
+// public/publishable key — it can't modify or delete any data, and
+// doesn't need the service-role key the ingestion scripts use.
 //
 // Usage:
 //   node scripts/stress_test.js
@@ -47,9 +48,8 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// A handful of different search terms, so pg_stat_statements sees some
-// variety instead of one single repeated query.
-const SEARCH_TERMS = [
+// Ordinary search phrases — the kind of thing a real visitor would type.
+const LIGHT_TERMS = [
   'privacy',
   'security',
   'covered entity',
@@ -62,25 +62,90 @@ const SEARCH_TERMS = [
   'workforce',
 ];
 
-const CONCURRENCY = 20; // requests fired at once, per burst
-const BURSTS = 5; // how many bursts to run, one after another
+// WHY HEAVIER: search_sections turns every word into a "starts with"
+// match (see build_prefix_tsquery in schema.md) — a single letter like
+// "s" matches every word in the database starting with S, so Postgres has
+// to rank far more matching rows than it would for a specific phrase like
+// "covered entity". That makes these noticeably more expensive per call.
+const HEAVY_TERMS = ['a', 'e', 'i', 'o', 's', 't', 'c', 'r'];
 
-async function runBurst(burstNumber) {
-  const requests = Array.from({ length: CONCURRENCY }, (_, i) => {
-    const term = SEARCH_TERMS[i % SEARCH_TERMS.length];
-    return supabase.rpc('search_sections', { p_query: term, p_limit: 20 });
-  });
+// Picks a random whole number between min and max (inclusive) — used
+// below so the amount of load this script generates is different every
+// time it's run, instead of the exact same 5-bursts-of-20 every time.
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pickRandom(list) {
+  return list[randomInt(0, list.length - 1)];
+}
+
+// Asks the database for the real list of section ids, the same way the
+// sidebar does (see useSectionList.js) — get_section needs a real id to
+// look up, so one can't just be made up.
+async function loadSectionIds() {
+  const { data } = await supabase.from('hipaa_sections').select('id');
+  return (data ?? []).map((row) => row.id);
+}
+
+// Builds one randomly-chosen request:
+// - 40% of the time, an ordinary search (the everyday case)
+// - 20% of the time, a deliberately broad/heavier search
+// - 20% of the time, fetching a whole section's full text — heavier
+//   still, since get_section highlights the ENTIRE body instead of a
+//   short snippet the way search_sections does (see get_section in
+//   schema.md), and sometimes includes a search term so its highlighting
+//   code runs too, not just a plain fetch.
+// - 20% of the time, simulate_slow_query — a deliberately, reliably slow
+//   call (see schema.md) that doesn't depend on real data or which search
+//   terms got picked, so at least some requests are GUARANTEED to clear
+//   the 10ms threshold and show up in the Slowest Queries table every
+//   single run, instead of hoping the real searches happen to be slow
+//   enough.
+function randomRequest(sectionIds) {
+  const roll = Math.random();
+
+  if (roll < 0.4) {
+    return supabase.rpc('search_sections', { p_query: pickRandom(LIGHT_TERMS), p_limit: 20 });
+  }
+
+  if (roll < 0.6) {
+    return supabase.rpc('search_sections', { p_query: pickRandom(HEAVY_TERMS), p_limit: 20 });
+  }
+
+  if (roll < 0.8) {
+    const query = Math.random() < 0.5 ? pickRandom(LIGHT_TERMS) : null;
+    return supabase.rpc('get_section', { p_id: pickRandom(sectionIds), p_query: query });
+  }
+
+  return supabase.rpc('simulate_slow_query', { p_min_ms: 50, p_max_ms: 300 });
+}
+
+async function runBurst(burstNumber, totalBursts, concurrency, sectionIds) {
+  const requests = Array.from({ length: concurrency }, () => randomRequest(sectionIds));
   const start = Date.now();
   await Promise.all(requests);
-  console.log(`Burst ${burstNumber}/${BURSTS}: ${CONCURRENCY} requests in ${Date.now() - start}ms`);
+  console.log(`Burst ${burstNumber}/${totalBursts}: ${concurrency} requests in ${Date.now() - start}ms`);
 }
 
 async function main() {
+  const sectionIds = await loadSectionIds();
+  if (sectionIds.length === 0) {
+    console.error('No sections found — has ingest_hipaa.py been run?');
+    process.exit(1);
+  }
+
+  // A different total amount of load each run: somewhere between 3-8
+  // bursts of 10-40 concurrent requests, so two runs back to back don't
+  // put the exact same load on the database.
+  const bursts = randomInt(3, 8);
+  const concurrency = randomInt(10, 40);
+
   console.log(
-    `Stress testing ${SUPABASE_URL} with ${BURSTS} bursts of ${CONCURRENCY} concurrent requests...`
+    `Stress testing ${SUPABASE_URL} with ${bursts} bursts of ${concurrency} concurrent requests (mixed light/heavy)...`
   );
-  for (let i = 1; i <= BURSTS; i++) {
-    await runBurst(i);
+  for (let i = 1; i <= bursts; i++) {
+    await runBurst(i, bursts, concurrency, sectionIds);
   }
   console.log('Done — check the System Health page now for a spike in stats.');
 }

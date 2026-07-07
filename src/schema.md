@@ -393,9 +393,41 @@ begin
     from pg_stat_statements s
     where s.dbid = (select oid from pg_database where datname = current_database())
       and s.mean_exec_time > p_min_ms
+      -- Every real call from this app (or from scripts/stress_test.js)
+      -- goes through PostgREST's REST/RPC API, which always wraps the
+      -- call in a CTE it names "pgrst_source" — that's PostgREST's own
+      -- consistent naming, not something specific to any one function
+      -- here. Raw SQL run directly in the Supabase SQL editor / dashboard
+      -- (schema browsing, extension lists, etc.) never has this wrapper,
+      -- so this filters that background noise out without needing to
+      -- list every function name by hand.
+      and s.query ilike '%pgrst_source%'
     order by s.total_exec_time desc
     limit p_limit;
 end;
 $$ language plpgsql security definer set search_path = public, extensions;
 
 grant execute on function public.get_slow_queries(int, double precision) to anon, authenticated;
+
+-- A synthetic "slow query" the stress test script (scripts/stress_test.js)
+-- calls to reliably demonstrate the Slowest Queries table on System
+-- Health, without depending on how much regulation data happens to be
+-- loaded or which random search terms got picked that run. pg_sleep just
+-- makes the database connection wait — it doesn't burn CPU or touch any
+-- real data, so it's safe and lightweight to call, but it still shows up
+-- as a genuinely slow, real database call in pg_stat_statements. Holding
+-- several of these open at once concurrently is also a reliable way to
+-- see active_connections rise on System Health, unlike a real search
+-- which finishes almost instantly.
+create or replace function public.simulate_slow_query(p_min_ms int default 50, p_max_ms int default 300)
+returns int as $$
+declare
+  duration_ms int;
+begin
+  duration_ms := p_min_ms + floor(random() * (p_max_ms - p_min_ms + 1))::int;
+  perform pg_sleep(duration_ms / 1000.0);
+  return duration_ms;
+end;
+$$ language plpgsql;
+
+grant execute on function public.simulate_slow_query(int, int) to anon, authenticated;

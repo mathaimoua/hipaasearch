@@ -286,6 +286,24 @@ export default function Home() {
               day: 'numeric',
             })}
           </p>
+          <div className="search-footer-links">
+            <a
+              href="https://www.3m.com/3M/en_US/p/d/b10083111/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="search-footer-link"
+            >
+              Video Player
+            </a>
+            <a
+              href="https://github.com/mathaimoua/hipaasearch"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="search-footer-link"
+            >
+              Github
+            </a>
+          </div>
         </footer>
       )}
     </div>

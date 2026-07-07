@@ -58,6 +58,28 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* The row of external links under the "Data last updated" text, side by
+   side with a small gap between them. */
+.search-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+/* Same ":visited" override as .search-topbar-link above — without it, the
+   global purple "already clicked" color would take over after the first
+   click and be hard to read against the navy background. */
+.search-footer-link,
+.search-footer-link:visited {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-footer-link:hover {
+  color: var(--color-white);
+}
+
 /* The small bar in the top-right with the signed-in username and a
    sign-out button. */
 .search-topbar {
