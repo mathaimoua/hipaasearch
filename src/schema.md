@@ -292,3 +292,110 @@ alter table hipaa_definitions add column updated_at timestamptz not null default
 create trigger set_hipaa_definitions_updated_at
   before insert or update on hipaa_definitions
   for each row execute procedure public.set_updated_at();
+
+-- Powers the in-app "System Health" page. True uptime can't be reported by
+-- the database itself (it can't tell you it's down while it's down — see
+-- the README's Monitoring section for where that actually lives, in
+-- Supabase's own dashboard). What Postgres CAN report on is its own
+-- performance, automatically, the same way a car's odometer tracks
+-- mileage without anyone typing numbers in — that's what these two
+-- functions read.
+--
+-- pg_stat_statements is what powers Supabase's own "Query Performance"
+-- dashboard report too. On Supabase this can be turned on right here with
+-- `create extension`; if that ever fails because of permissions, it can
+-- also be enabled from the dashboard under Database -> Extensions.
+create extension if not exists pg_stat_statements;
+
+-- SECURITY DEFINER here (like verify_login/create_user earlier) because
+-- the pg_stat_* system views aren't readable by the anon/authenticated
+-- roles by default — only by the function's owner, which on Supabase is
+-- whichever role ran this SQL (with full read access to its own stats).
+--
+-- Deliberately does NOT report anything about the `users` table (e.g. how
+-- many accounts exist). Like every other function in this file, this one
+-- ends up reachable by anyone with the public/publishable key (see the
+-- note on search_sections above) since this app has no real per-request
+-- login session for Postgres to check — so the numbers here are limited to
+-- generic database stats and the public content tables only.
+create or replace function public.get_system_health()
+returns table (
+  database_size_bytes bigint,
+  active_connections int,
+  cache_hit_ratio double precision,
+  hipaa_sections_count bigint,
+  hipaa_definitions_count bigint
+) as $$
+begin
+  return query
+    select
+      pg_database_size(current_database()) as database_size_bytes,
+      (
+        select count(*)::int
+        from pg_stat_activity
+        where datname = current_database()
+      ) as active_connections,
+      (
+        -- What fraction of reads were served from memory instead of disk —
+        -- closer to 1 (100%) is better. Falls back to 1 instead of
+        -- dividing by zero on a freshly created database with no read
+        -- activity yet.
+        select case
+          when sum(blks_hit) + sum(blks_read) = 0 then 1.0::double precision
+          else sum(blks_hit)::double precision / (sum(blks_hit) + sum(blks_read))::double precision
+        end
+        from pg_stat_database
+        where datname = current_database()
+      ) as cache_hit_ratio,
+      (select count(*) from public.hipaa_sections) as hipaa_sections_count,
+      (select count(*) from public.hipaa_definitions) as hipaa_definitions_count;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function public.get_system_health() to anon, authenticated;
+
+-- The slowest queries this app has run, worst first, from
+-- pg_stat_statements. Truncated to 200 characters mainly to keep the
+-- result readable — this app only ever runs a handful of known,
+-- parameterized queries (the functions in this file), so there's little
+-- risk of the query text itself leaking anything sensitive.
+--
+-- Same "extensions" schema gotcha as pgcrypto earlier in this file:
+-- Supabase installs extensions like pg_stat_statements into a schema
+-- called "extensions", not "public", so search_path has to include both
+-- or this function can't find it.
+-- p_min_ms filters out anything faster than that, on average, per call
+-- (mean_exec_time) — mainly to hide the constant stream of sub-millisecond
+-- PostgREST bookkeeping queries (session setup, transaction BEGIN/COMMIT)
+-- that run on every single API request, so this only shows queries
+-- actually worth looking at.
+--
+-- This adds a new parameter (p_min_ms) to what used to be a one-parameter
+-- function, which Postgres treats as a distinct overload rather than a
+-- replacement — drop the old one first so the app doesn't end up with two
+-- ambiguous versions of "get_slow_queries" to choose between.
+drop function if exists public.get_slow_queries(int);
+
+create or replace function public.get_slow_queries(p_limit int default 5, p_min_ms double precision default 10)
+returns table (
+  query text,
+  calls bigint,
+  mean_exec_time double precision,
+  total_exec_time double precision
+) as $$
+begin
+  return query
+    select
+      left(s.query, 200) as query,
+      s.calls,
+      s.mean_exec_time,
+      s.total_exec_time
+    from pg_stat_statements s
+    where s.dbid = (select oid from pg_database where datname = current_database())
+      and s.mean_exec_time > p_min_ms
+    order by s.total_exec_time desc
+    limit p_limit;
+end;
+$$ language plpgsql security definer set search_path = public, extensions;
+
+grant execute on function public.get_slow_queries(int, double precision) to anon, authenticated;

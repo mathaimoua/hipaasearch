@@ -9,10 +9,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 // The gatekeeper that blocks a page unless someone is signed in.
 import { ProtectedRoute } from './components/ProtectedRoute';
-// The two pages we currently have: the sign-in form, and the placeholder
-// signed-in view.
+// The pages we currently have: the sign-in form, the main search page, and
+// the System Health monitoring page.
 import Login from './pages/Login';
 import Home from './pages/Home';
+import SystemHealth from './pages/SystemHealth';
 // Shared page-wide styling.
 import './App.css';
 
@@ -35,6 +36,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Home />
+              </ProtectedRoute>
+            }
+          />
+          {/* Visiting /health shows the System Health monitoring page,
+              same login requirement as the main page. */}
+          <Route
+            path="/health"
+            element={
+              <ProtectedRoute>
+                <SystemHealth />
               </ProtectedRoute>
             }
           />

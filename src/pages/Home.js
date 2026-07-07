@@ -13,6 +13,8 @@
 
 // useState: remember a value and re-draw when it changes.
 import { useState } from 'react';
+// Link: navigates to another page without a full browser reload.
+import { Link } from 'react-router-dom';
 // Our helper for reading the current login info and signing out.
 import { useAuth } from '../context/AuthContext';
 // Our custom hook that does the actual searching (see useHipaaSearch.js).
@@ -121,6 +123,9 @@ export default function Home() {
         <span className="search-topbar-user">
           {user?.username} ({user?.role})
         </span>
+        <Link to="/health" className="search-topbar-link">
+          System Health
+        </Link>
         <button className="search-signout" onClick={signOut}>
           Sign out
         </button>

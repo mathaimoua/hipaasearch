@@ -1,0 +1,107 @@
+/* Styling for the System Health page. Reuses the same shared color
+   variables as the rest of the app (see src/index.css) so it matches. */
+
+.health-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.health-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+/* This is a nav link, not a content link, so it stays accent-blue even
+   after being visited (see the same override on .search-topbar-link in
+   Home.css for why this is needed). */
+.health-back,
+.health-back:visited {
+  font-size: 13px;
+  color: var(--color-accent);
+}
+
+.health-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-black);
+}
+
+.health-status {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+/* The row of small stat cards (database size, connections, etc). */
+.health-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.health-stat {
+  flex: 1;
+  min-width: 140px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.health-stat-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+}
+
+.health-stat-value {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.health-subheading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-black);
+  margin: 0 0 12px;
+}
+
+/* The slow-queries table. */
+.health-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.health-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.health-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-black);
+  vertical-align: top;
+}
+
+.health-table-query {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  /* Long queries wrap instead of stretching the table wider than the
+     page. */
+  word-break: break-word;
+}

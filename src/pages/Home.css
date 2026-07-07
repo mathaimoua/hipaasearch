@@ -72,6 +72,22 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* This is a nav link, not a content link, so it stays white even after
+   being visited — without the ":visited" override, the global purple
+   "already clicked" color from index.css would take over after the first
+   click and clash with the navy background. */
+.search-topbar-link,
+.search-topbar-link:visited {
+  color: var(--color-white);
+  font-size: 13px;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.4);
+}
+
+.search-topbar-link:hover {
+  text-decoration-color: var(--color-white);
+}
+
 .search-signout {
   background: none;
   border: 1px solid rgba(255, 255, 255, 0.35);

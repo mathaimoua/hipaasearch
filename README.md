@@ -1,3 +1,32 @@
+# HIPAA Search
+
+## Monitoring
+
+This app doesn't have its own backend server — it's a React frontend
+talking straight to Supabase (Postgres + a handful of database functions,
+see `src/schema.md`). That means most monitoring already exists for free,
+built into Supabase itself, with no code to write or maintain:
+
+- **Uptime / incidents** — a database can't reliably report on its own
+  downtime while it's actually down, so this only ever lives outside the
+  app itself:
+  - [status.supabase.com](https://status.supabase.com) — platform-wide
+    incidents affecting all Supabase projects.
+  - Your project's Supabase Dashboard → **Database → Reports** — this
+    specific project's health over time.
+- **Query / database performance** — Postgres tracks this about itself
+  automatically (no manual data entry involved):
+  - Supabase Dashboard → **Database → Query Performance** — slowest and
+    most frequent queries, built on Postgres's `pg_stat_statements`.
+  - Supabase Dashboard → **Database → Reports** — CPU, memory, disk I/O,
+    and connection count charts.
+
+For a smaller, in-app view of some of these same self-reported Postgres
+stats (database size, active connections, cache hit ratio, content table
+row counts, and the slowest queries), sign in and visit **System Health**
+(linked from the top bar) — see `get_system_health()` and
+`get_slow_queries()` in `src/schema.md` for how it's populated.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
